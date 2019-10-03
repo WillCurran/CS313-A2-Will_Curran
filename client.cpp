@@ -135,9 +135,8 @@ int main(int argc, char *argv[]){
     
     // Requirement 1. Write 1.csv individually to x1.csv, time it.
     // Toggle comments on Block A to run this chunk
-    timeval time_checked;
-    gettimeofday(&time_checked, NULL);
-    cout << "Start: " << time_checked.tv_sec << endl;
+    timeval start, end;
+    gettimeofday(&start, NULL);
     int fd;
     if((fd = open("./received/x1.csv", O_WRONLY|O_CREAT)) < 0) {
         perror("open");
@@ -146,7 +145,7 @@ int main(int argc, char *argv[]){
     double time = 0.000;
     int save_stdout = dup(1);
     dup2(fd, 1);
-    while(time < 60.0) {
+    while(time < 59.996) {
         cout << time << ",";
         for(int i = 1; i >= 0; i--) {
             datamsg d = datamsg(1, time, i);
@@ -161,16 +160,18 @@ int main(int argc, char *argv[]){
         cout << endl;
         time += 0.004;
     }
-
+//    cout << "ANYTHING1" << endl;
+    gettimeofday(&end, NULL);
+    dup2(save_stdout, 1);
+    close(save_stdout);
+//    cout << "ANYTHING2" << endl;
+    double time_elapsed = (end.tv_sec*1000000 + end.tv_usec - start.tv_sec*1000000 + start.tv_usec) / 1000000.0;
+    cout << "Time elapsed: " << time_elapsed << "sec + " << endl;
     if(close(fd) < 0) {
         perror("close");
         exit(1);
     }
-    gettimeofday(&time_checked, NULL);
-    dup2(save_stdout, 1);
-    close(save_stdout);
-    cout << "End: " << time_checked.tv_sec << endl;
-
+    
     // closing the channel    
     MESSAGE_TYPE m = QUIT_MSG;
     chan.cwrite(&m, sizeof (MESSAGE_TYPE));
