@@ -11,8 +11,8 @@ using namespace std;
 
 
 int main(int argc, char *argv[]){
-    int n = 100;    // default number of requests per "patient"
-	int p = 15;		// number of patients
+//    int n = 100;    // default number of requests per "patient"
+//	int p = 15;		// number of patients
     srand(time_t(NULL));
     
     bool file_requested = false;
@@ -70,43 +70,50 @@ int main(int argc, char *argv[]){
         double* reply = (double*) buf;
         cout << *reply << endl;
     } else {
+        // will reuse this block of memory
         const char* filename_cstr = filename.c_str();
         int block_size = sizeof(filemsg) + sizeof(filename_cstr);
         char* block = new char[block_size];
         filemsg* getFileLength = (filemsg*) block; // set pointers
-        char* filename_to_server = block + sizeof(filemsg);
+        char* filename_to_server = block + sizeof(filemsg); // this pointer's location is constant
         *getFileLength = filemsg(0, 0); // write the data
-        strcpy(filename_to_server, filename_cstr);
+        strcpy(filename_to_server, filename_cstr); // won't need to ever change this
+        
         chan.cwrite(getFileLength, block_size);
         char* buf = chan.cread();
         __int64_t* len = (__int64_t*) buf; // cast char ptr to int ptr
-        cout << "len = " << *len << endl;
+//        cout << "len = " << *len << endl;
 
-        int write_cycles = *len / MAX_MESSAGE;
-        if(*len % MAX_MESSAGE != 0)
-            write_cycles++;
+        __int64_t len_remaining = *len;
         
         // open a file in received/ directory
-        string new_file = "/received/" + filename;
+        string new_file = "./received/" + filename;
+        cout << new_file << endl;
         int fd;
-        if((fd = open(new_file, O_WRONLY) < 0)) {
+        if((fd = open(new_file.c_str(), O_WRONLY|O_CREAT)) < 0) {
             perror("open");
             _exit(1);
         }
-        int current_cycle = 0;
-        while(current_cycle < write_cycles) {
-            filemsg msg = filemsg(current_cycle*MAX_MESSAGE, MAX_MESSAGE);
-            chan.cwrite(&msg, sizeof (msg));
+        cout << "fd: " << fd << endl;
+        filemsg* msg = (filemsg*) block; // re-use same block of memory
+        while(len_remaining > 0) { // assumes no remainder
+            *msg = filemsg(*len - len_remaining, MAX_MESSAGE % len_remaining); // write the data
+            chan.cwrite(msg, block_size);
             buf = chan.cread();
             // write to a file I've opened
-            cout << buf << endl;
-            current_cycle++;
+            if (write(fd, buf, MAX_MESSAGE) < 0) {
+                perror("write");
+                _exit(1);
+            }
+            len_remaining -= MAX_MESSAGE;
         }
 
         if(close(fd) < 0) {
             perror("close");
             exit(1);
         }
+        
+        delete[] block;
     }
 
     // closing the channel    

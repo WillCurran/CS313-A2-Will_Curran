@@ -89,6 +89,7 @@ void process_file_request (FIFORequestChannel* rc, char* request){
 	}
 	fseek (fp, f->offset, SEEK_SET);
 	int nbytes = fread (buffer, 1, f->length, fp);
+//    cout << "nbytes: " << nbytes << endl;
 	assert (nbytes == f->length);
 	rc->cwrite (buffer, nbytes);
 	fclose (fp);
