@@ -11,8 +11,12 @@ using namespace std;
 
 
 int main(int argc, char *argv[]){
-//    int n = 100;    // default number of requests per "patient"
-//	int p = 15;		// number of patients
+    // start up the server from the client-side
+    if(fork() == 0) {
+        char *argv[] = {"./dataserver", NULL};
+        execvp(argv[0], argv);
+    }
+    
     srand(time_t(NULL));
     
     bool file_requested = false;
@@ -139,4 +143,5 @@ int main(int argc, char *argv[]){
         more_channels[i]->cwrite(&m, sizeof (MESSAGE_TYPE));
     for(int i = 0; i < more_channels.size(); i++)
         delete more_channels[i];
+    wait(0); // wait for server process to quit
 }
