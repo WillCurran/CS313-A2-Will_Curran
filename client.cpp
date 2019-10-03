@@ -16,6 +16,7 @@ int main(int argc, char *argv[]){
     srand(time_t(NULL));
     
     bool file_requested = false;
+    bool new_channel = false;
     int patient_requested;
     double time_requested;
     int ecg_num_requested;
@@ -26,7 +27,7 @@ int main(int argc, char *argv[]){
     extern char *optarg;
     extern int optind, optopt;
 
-    while ((option = getopt(argc, argv, "p:t:e:f:")) != -1) {
+    while ((option = getopt(argc, argv, "p:t:e:f:c")) != -1) {
         switch(option) {
             case 'p':
                 if(isdigit(optarg[0]))
@@ -49,6 +50,13 @@ int main(int argc, char *argv[]){
             case 'f':
                 filename = optarg;
                 file_requested = true;
+                if(new_channel)
+                    errflag++;
+                break;
+            case 'c':
+                new_channel = true;
+                if(file_requested)
+                    errflag++;
                 break;
             case '?':
                 errflag++;
@@ -62,14 +70,9 @@ int main(int argc, char *argv[]){
     // cout << patient_requested << endl << time_requested << endl << ecg_num_requested << endl;
 
     FIFORequestChannel chan ("control", FIFORequestChannel::CLIENT_SIDE);
+    vector<FIFORequestChannel*> more_channels; // user may create and join a channel
 
-    if(!file_requested) {
-        datamsg d = datamsg(patient_requested, time_requested, ecg_num_requested);
-        chan.cwrite(&d, sizeof (d));
-        char* buf = chan.cread();
-        double* reply = (double*) buf;
-        cout << *reply << endl;
-    } else {
+    if(file_requested) {
         // will reuse this block of memory
         const char* filename_cstr = filename.c_str();
         int block_size = sizeof(filemsg) + sizeof(filename_cstr);
@@ -114,11 +117,26 @@ int main(int argc, char *argv[]){
         }
         
         delete[] block;
+    } else if(new_channel) {
+        MESSAGE_TYPE m = NEWCHANNEL_MSG;
+        chan.cwrite(&m, sizeof (m)); // just send the message
+        char* buf = chan.cread(); // contains name of new channel
+        string name = buf;
+        FIFORequestChannel* new_chan = new FIFORequestChannel(name, FIFORequestChannel::CLIENT_SIDE);
+        more_channels.push_back(new_chan);
+    } else {
+        datamsg d = datamsg(patient_requested, time_requested, ecg_num_requested);
+        chan.cwrite(&d, sizeof (d));
+        char* buf = chan.cread();
+        double* reply = (double*) buf;
+        cout << *reply << endl;
     }
 
     // closing the channel    
     MESSAGE_TYPE m = QUIT_MSG;
-    chan.cwrite (&m, sizeof (MESSAGE_TYPE));
-
-   
+    chan.cwrite(&m, sizeof (MESSAGE_TYPE));
+    for(int i = 0; i < more_channels.size(); i++)
+        more_channels[i]->cwrite(&m, sizeof (MESSAGE_TYPE));
+    for(int i = 0; i < more_channels.size(); i++)
+        delete more_channels[i];
 }
