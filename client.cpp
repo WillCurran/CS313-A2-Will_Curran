@@ -77,6 +77,10 @@ int main(int argc, char *argv[]){
     // cout << patient_requested << endl << time_requested << endl << ecg_num_requested << endl;
 
     if(file_requested) {
+        // TIME TESTING
+        timeval start, end;
+        gettimeofday(&start, NULL);
+        
         // will reuse this block of memory
         const char* filename_cstr = filename.c_str();
         int block_size = sizeof(filemsg) + sizeof(filename_cstr);
@@ -98,32 +102,30 @@ int main(int argc, char *argv[]){
             perror("open");
             _exit(1);
         }
-//        int save_stdout = dup(1);
-//        dup2(fd, 1);
         int buf_size = MAX_MESSAGE;
         filemsg* msg = (filemsg*) block; // re-use same block of memory
-        while(len_remaining > 0) { // assumes no remainder
+        while(len_remaining > 0) {
             if(len_remaining < MAX_MESSAGE)
                 buf_size = (int) len_remaining;
             *msg = filemsg(*len - len_remaining, buf_size); // write the data
             chan.cwrite(msg, block_size);
             buf = chan.cread();
-            // write to a file I've opened
-            if (write(fd, buf, buf_size) < 0) {
+            if(write(fd, buf, buf_size) < 0) {
                 perror("write");
                 _exit(1);
             }
-//            cout << buf;
             len_remaining -= MAX_MESSAGE;
         }
-//        dup2(1, save_stdout);
-//        close(save_stdout);
         if(close(fd) < 0) {
             perror("close");
             exit(1);
         }
-
         delete[] block;
+        
+        // TIME TESTING
+        gettimeofday(&end, NULL);
+        double time_elapsed = (end.tv_sec*1000000 + end.tv_usec - start.tv_sec*1000000 + start.tv_usec) / 1000000.0;
+        cout << "Time elapsed: " << time_elapsed << "sec" << endl;
     } else if(new_channel) {
         MESSAGE_TYPE m = NEWCHANNEL_MSG;
         chan.cwrite(&m, sizeof (m)); // just send the message
