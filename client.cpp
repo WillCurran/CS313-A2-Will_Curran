@@ -74,7 +74,7 @@ int main(int argc, char *argv[]){
     // cout << patient_requested << endl << time_requested << endl << ecg_num_requested << endl;
 
     FIFORequestChannel chan ("control", FIFORequestChannel::CLIENT_SIDE);
-    vector<FIFORequestChannel*> more_channels; // user may create and join a channel
+    vector<FIFORequestChannel*> more_channels; // user may create new channels (vector for future implementation)
 
     if(file_requested) {
         // will reuse this block of memory
