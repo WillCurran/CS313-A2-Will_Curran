@@ -89,7 +89,6 @@ int main(int argc, char *argv[]){
         char* filename_to_server = block + sizeof(filemsg); // this pointer's location is constant
         *getFileLength = filemsg(0, 0); // write the data
         strcpy(filename_to_server, filename_cstr); // won't need to ever change this if same file
-
         chan.cwrite(getFileLength, block_size);
         char* buf = chan.cread();
         __int64_t* len = (__int64_t*) buf; // cast char ptr to int ptr
@@ -133,6 +132,23 @@ int main(int argc, char *argv[]){
         string name = buf;
         FIFORequestChannel* new_chan = new FIFORequestChannel(name, FIFORequestChannel::CLIENT_SIDE);
         more_channels.push_back(new_chan);
+        
+        // TEST FUNCTIONALITY BELOW
+        
+        // send a request to 5.csv for ecg 0 at t=43.992
+        datamsg d = datamsg(5, 43.992, 0);
+        new_chan->cwrite(&d, sizeof (d));
+        buf = new_chan->cread();
+        double* reply = (double*) buf;
+        cout << *reply << endl;
+        assert(*reply == -0.19);
+        // send a request to 2.csv for ecg 1 at t=1.084
+        d = datamsg(2, 1.084, 1);
+        new_chan->cwrite(&d, sizeof (d));
+        buf = new_chan->cread();
+        reply = (double*) buf;
+        cout << *reply << endl;
+        assert(*reply == -0.69);
     } else {
         datamsg d = datamsg(patient_requested, time_requested, ecg_num_requested);
         chan.cwrite(&d, sizeof (d));
