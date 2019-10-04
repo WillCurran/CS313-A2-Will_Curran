@@ -70,7 +70,7 @@ int main(int argc, char *argv[]){
         }
     }
     if (errflag) {
-        fprintf(stderr, "usage: client [-p <person>] [-t <time>] [-e <ecg number>] OR usage: client [-f <file>]\n");
+        fprintf(stderr, "usage: client [-p <person>] [-t <time>] [-e <ecg number>] OR client [-f <file>] OR client [-c]\n");
         return 1;
     }
 
@@ -78,8 +78,8 @@ int main(int argc, char *argv[]){
 
     if(file_requested) {
         // TIME TESTING
-        timeval start, end;
-        gettimeofday(&start, NULL);
+//        timeval start, end;
+//        gettimeofday(&start, NULL);
         
         // will reuse this block of memory
         const char* filename_cstr = filename.c_str();
@@ -103,10 +103,10 @@ int main(int argc, char *argv[]){
         }
         int buf_size = MAX_MESSAGE;
         filemsg* msg = (filemsg*) block; // re-use same block of memory
-        while(len_remaining > 0) {
-            if(len_remaining < MAX_MESSAGE)
+        while(len_remaining > 0) { // keep writing until nothing left
+            if(len_remaining < MAX_MESSAGE) // last portion
                 buf_size = (int) len_remaining;
-            *msg = filemsg(*len - len_remaining, buf_size); // write the data
+            *msg = filemsg(*len - len_remaining, buf_size);
             chan.cwrite(msg, block_size);
             buf = chan.cread();
             if(write(fd, buf, buf_size) < 0) {
@@ -122,9 +122,9 @@ int main(int argc, char *argv[]){
         delete[] block;
         
         // TIME TESTING
-        gettimeofday(&end, NULL);
-        double time_elapsed = (end.tv_sec*1000000 + end.tv_usec - start.tv_sec*1000000 + start.tv_usec) / 1000000.0;
-        cout << "Time elapsed: " << time_elapsed << "sec" << endl;
+//        gettimeofday(&end, NULL);
+//        double time_elapsed = (end.tv_sec*1000000 + end.tv_usec - start.tv_sec*1000000 + start.tv_usec) / 1000000.0;
+//        cout << "Time elapsed: " << time_elapsed << "sec" << endl;
     } else if(new_channel) {
         MESSAGE_TYPE m = NEWCHANNEL_MSG;
         chan.cwrite(&m, sizeof (m)); // just send the message
@@ -135,20 +135,20 @@ int main(int argc, char *argv[]){
         
         // TEST FUNCTIONALITY BELOW
         
-        // send a request to 5.csv for ecg 0 at t=43.992
-        datamsg d = datamsg(5, 43.992, 0);
-        new_chan->cwrite(&d, sizeof (d));
-        buf = new_chan->cread();
-        double* reply = (double*) buf;
-        cout << *reply << endl;
-        assert(*reply == -0.19);
-        // send a request to 2.csv for ecg 1 at t=1.084
-        d = datamsg(2, 1.084, 1);
-        new_chan->cwrite(&d, sizeof (d));
-        buf = new_chan->cread();
-        reply = (double*) buf;
-        cout << *reply << endl;
-        assert(*reply == -0.69);
+//        // send a request to 5.csv for ecg 0 at t=43.992
+//        datamsg d = datamsg(5, 43.992, 0);
+//        new_chan->cwrite(&d, sizeof (d));
+//        buf = new_chan->cread();
+//        double* reply = (double*) buf;
+//        cout << *reply << endl;
+//        assert(*reply == -0.19);
+//        // send a request to 2.csv for ecg 1 at t=1.084
+//        d = datamsg(2, 1.084, 1);
+//        new_chan->cwrite(&d, sizeof (d));
+//        buf = new_chan->cread();
+//        reply = (double*) buf;
+//        cout << *reply << endl;
+//        assert(*reply == -0.69);
     } else {
         datamsg d = datamsg(patient_requested, time_requested, ecg_num_requested);
         chan.cwrite(&d, sizeof (d));
@@ -206,4 +206,5 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < more_channels.size(); i++)
         delete more_channels[i];
     wait(0); // wait for server process to quit
+    return 0;
 }
