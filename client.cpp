@@ -23,6 +23,7 @@ int main(int argc, char *argv[]){
     vector<FIFORequestChannel*> more_channels; // user may create new channels (vector for future implementation)
     // BLOCK A START
     bool file_requested = false;
+    bool one_by_one_file = false;
     bool new_channel = false;
     int patient_requested;
     double time_requested;
@@ -37,14 +38,18 @@ int main(int argc, char *argv[]){
     while ((option = getopt(argc, argv, "p:t:e:f:c")) != -1) {
         switch(option) {
             case 'p':
-                if(isdigit(optarg[0]))
+                if(isdigit(optarg[0])) {
                     patient_requested = atoi(optarg);
+                    one_by_one_file = true;
+                }
                 else
                     errflag++;
                 break;
             case 't':
-                if(isdigit(optarg[0]))
+                if(isdigit(optarg[0])) {
                     time_requested = atof(optarg);
+                    one_by_one_file = false;
+                }
                 else
                     errflag++;
                 break;
@@ -135,20 +140,56 @@ int main(int argc, char *argv[]){
         
         // TEST FUNCTIONALITY BELOW
         
-//        // send a request to 5.csv for ecg 0 at t=43.992
-//        datamsg d = datamsg(5, 43.992, 0);
-//        new_chan->cwrite(&d, sizeof (d));
-//        buf = new_chan->cread();
-//        double* reply = (double*) buf;
-//        cout << *reply << endl;
-//        assert(*reply == -0.19);
-//        // send a request to 2.csv for ecg 1 at t=1.084
-//        d = datamsg(2, 1.084, 1);
-//        new_chan->cwrite(&d, sizeof (d));
-//        buf = new_chan->cread();
-//        reply = (double*) buf;
-//        cout << *reply << endl;
-//        assert(*reply == -0.69);
+        // send a request to 5.csv for ecg 0 at t=43.992
+        datamsg d = datamsg(5, 43.992, 0);
+        new_chan->cwrite(&d, sizeof (d));
+        buf = new_chan->cread();
+        double* reply = (double*) buf;
+        cout << *reply << endl;
+        assert(*reply == -0.19);
+        // send a request to 2.csv for ecg 1 at t=1.084
+        d = datamsg(2, 1.084, 1);
+        new_chan->cwrite(&d, sizeof (d));
+        buf = new_chan->cread();
+        reply = (double*) buf;
+        cout << *reply << endl;
+        assert(*reply == -0.69);
+    } else if(one_by_one_file){
+        timeval start, end;
+        gettimeofday(&start, NULL);
+        string x = "./received/x" + to_string(patient_requested) + ".csv";
+        int fd;
+        if((fd = open(x.c_str(), O_WRONLY|O_CREAT)) < 0) {
+            perror("open");
+            _exit(1);
+        }
+        int count = 0;
+        int save_stdout = dup(1);
+        dup2(fd, 1);
+        while(count < 60*250) { // 60sec, 0.004 time intervals starting from 0
+            cout << count*0.004 << ",";
+            for(int i = 1; i >= 0; i--) {
+                datamsg d = datamsg(patient_requested, count*0.004, i);
+                chan.cwrite(&d, sizeof(d));
+                char* buf = chan.cread();
+                double* reply = (double*) buf;
+                cout << *reply;
+                if(i == 1) {
+                    cout << ",";
+                }
+            }
+            cout << endl;
+            count++;
+        }
+        gettimeofday(&end, NULL);
+        dup2(save_stdout, 1);
+        close(save_stdout);
+        double time_elapsed = (end.tv_sec*1000000 + end.tv_usec - start.tv_sec*1000000 + start.tv_usec) / 1000000.0;
+        cout << "Time elapsed: " << time_elapsed << "sec" << endl;
+        if(close(fd) < 0) {
+            perror("close");
+            exit(1);
+        }
     } else {
         datamsg d = datamsg(patient_requested, time_requested, ecg_num_requested);
         chan.cwrite(&d, sizeof (d));
